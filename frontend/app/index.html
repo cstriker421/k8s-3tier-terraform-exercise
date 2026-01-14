@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+This is a static frontend served by Nginx.
+All frontend logic runs client-side in the browser.
+No server-side JavaScript is required.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>K8s 3-Tier App</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+      code { background: #f3f3f3; padding: .2rem .4rem; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>Kubernetes 3-Tier App</h1>
+    <p>Frontend → Backend → Database</p>
+
+    <button id="btn">Call backend (/api/message)</button>
+    <pre id="out">Click the button…</pre>
+
+    <script>
+      const out = document.getElementById("out");
+      document.getElementById("btn").addEventListener("click", async () => {
+        out.textContent = "Loading...";
+        try {
+          const r = await fetch("/api/message");
+          const data = await r.json();
+          out.textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+          out.textContent = "Error: " + e;
+        }
+      });
+    </script>
+  </body>
+</html>
