@@ -1,43 +1,43 @@
-SHELL := /bin/bash
-NAMESPACE ?= k8s-3tier
+TF_DIR := terraform
+PLAN_DIR := $(TF_DIR)/.plans
+PLAN := $(PLAN_DIR)/k8s.plan
+TFVARS ?= terraform.tfvars
 
-.PHONY: help chmod install deploy test status scale cleanup reset
+.PHONY: help init plan apply test destroy fmt validate clean
 
 help:
 	@echo "Targets:"
-	@echo "  make install   - Starts minikube, enables ingress, and creates namespace."
-	@echo "  make deploy    - Builds images and applies manifests."
-	@echo "  make test      - Curls end-to-end tests."
-	@echo "  make status    - Shows key resources."
-	@echo "  make scale N=3 - Scales backend deployment to N replicas."
-	@echo "  make cleanup   - Deletes the namespace"
-	@echo "  make reset     - Performs cleanup and deletes Minikube."
+	@echo "  make init                 - Terraform init"
+	@echo "  make plan TFVARS=dev.tfvars      - Terraform plan to $(PLAN)"
+	@echo "  make apply TFVARS=dev.tfvars     - Apply saved plan"
+	@echo "  make test                 - Run smoke tests"
+	@echo "  make destroy TFVARS=dev.tfvars   - Destroy resources"
+	@echo "  make fmt                  - Terraform fmt"
+	@echo "  make validate             - Terraform validate"
+	@echo "  make clean                - Remove plan artifacts"
 
-chmod:
-	chmod +x scripts/*.sh
+init:
+	@mkdir -p $(PLAN_DIR)
+	terraform -chdir=$(TF_DIR) init
 
-install: chmod
-	NAMESPACE=$(NAMESPACE) ./scripts/01-install.sh
+plan: init
+	@mkdir -p $(PLAN_DIR)
+	terraform -chdir=$(TF_DIR) plan -var-file=$(TFVARS) -out=.plans/$(notdir $(PLAN))
 
-deploy: chmod
-	NAMESPACE=$(NAMESPACE) ./scripts/02-deploy.sh
+apply: plan
+	terraform -chdir=$(TF_DIR) apply .plans/$(notdir $(PLAN))
 
-test: chmod
+test:
 	./scripts/03-test.sh
 
-status:
-	kubectl -n $(NAMESPACE) get deploy,rs,svc
-	kubectl -n $(NAMESPACE) get statefulset,pvc
-	kubectl -n $(NAMESPACE) get cm,secret
-	kubectl -n $(NAMESPACE) get ingress
+destroy: init
+	terraform -chdir=$(TF_DIR) destroy -var-file=$(TFVARS)
 
-scale:
-	@if [ -z "$(N)" ]; then echo "Usage: make scale N=3"; exit 1; fi
-	kubectl -n $(NAMESPACE) scale deploy/backend --replicas=$(N)
-	kubectl -n $(NAMESPACE) rollout status deploy/backend --timeout=300s
+fmt:
+	terraform -chdir=$(TF_DIR) fmt -recursive
 
-cleanup: chmod
-	NAMESPACE=$(NAMESPACE) ./scripts/04-cleanup.sh
+validate: init
+	terraform -chdir=$(TF_DIR) validate
 
-reset: cleanup
-	minikube delete || true
+clean:
+	rm -rf $(PLAN_DIR)
