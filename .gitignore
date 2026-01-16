@@ -3,3 +3,4 @@ terraform/.terraform.lock.hcl
 terraform/.plans/
 terraform/*.tfstate
 terraform/*.tfstate.*
+terraform/.backup

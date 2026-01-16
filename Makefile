@@ -7,31 +7,29 @@ TFVARS ?= terraform.tfvars
 
 help:
 	@echo "Targets:"
-	@echo "  make init                 - Terraform init"
-	@echo "  make plan TFVARS=dev.tfvars      - Terraform plan to $(PLAN)"
-	@echo "  make apply TFVARS=dev.tfvars     - Apply saved plan"
-	@echo "  make test                 - Run smoke tests"
-	@echo "  make destroy TFVARS=dev.tfvars   - Destroy resources"
-	@echo "  make fmt                  - Terraform fmt"
-	@echo "  make validate             - Terraform validate"
-	@echo "  make clean                - Remove plan artifacts"
+	@echo "  make init                 - Terraform init."
+	@echo "  make plan TFVARS=dev.tfvars      - Terraform plan to $(PLAN)."
+	@echo "  make apply TFVARS=dev.tfvars     - Apply saved plan."
+	@echo "  make test                 - Run smoke tests."
+	@echo "  make destroy TFVARS=dev.tfvars   - Destroy resources."
+	@echo "  make fmt                  - Terraform fmt."
+	@echo "  make validate             - Terraform validate."
+	@echo "  make clean                - Remove plan artifacts."
 
 init:
-	@mkdir -p $(PLAN_DIR)
-	terraform -chdir=$(TF_DIR) init
+	./scripts/01-init.sh
 
 plan: init
-	@mkdir -p $(PLAN_DIR)
-	terraform -chdir=$(TF_DIR) plan -var-file=$(TFVARS) -out=.plans/$(notdir $(PLAN))
+	./scripts/02-apply.sh --plan-only
 
-apply: plan
-	terraform -chdir=$(TF_DIR) apply .plans/$(notdir $(PLAN))
+apply: init
+	./scripts/02-apply.sh
 
 test:
 	./scripts/03-test.sh
 
 destroy: init
-	terraform -chdir=$(TF_DIR) destroy -var-file=$(TFVARS)
+	./scripts/04-destroy.sh
 
 fmt:
 	terraform -chdir=$(TF_DIR) fmt -recursive
