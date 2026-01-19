@@ -1,39 +1,53 @@
-# Kubernetes 3-Tier Application Exercise
+# Kubernetes 3-Tier Application Exercise — Terraform Edition
 
-This repository contains a simple **3-tier application** deployed on a **local Kubernetes cluster using Minikube**.
+This repository recreates the **Kubernetes 3-tier application** from the previous exercise,
+but **fully managed using Terraform** instead of raw Kubernetes YAML manifests.
 
-The application demonstrates the core Kubernetes concepts covered in the module
-with a strong emphasis on **automation and reproducibility**.
+The goal of this exercise is to demonstrate:
+- Correct use of the **Terraform Kubernetes provider**
+- Infrastructure-as-code principles
+- Clean modular structure
+- Fully automated deployment, testing, and teardown
 
-## Key concepts Demonstrated
+## Relationship to the Previous Exercise
 
-- Deployments and horizontal scaling
-- Services and internal service discovery
-- ConfigMaps and Secrets
-- Persistent storage using PVCs
-- StatefulSets for databases
-- Ingress for external access
-- Automation using shell scripts and Makefile
+This project is a **direct evolution** of the earlier Kubernetes 3-tier application.
+
+### Reused
+- Most of the same application architecture (frontend, backend, database)
+- Same containerized applications
+- Same Kubernetes concepts (Deployments, Services, Secrets, PVCs, Ingress)
+
+### Different
+- **All Kubernetes resources are now defined using Terraform**
+- No `kubectl apply -f` is used for application resources
+- Deployment lifecycle is managed via:
+  - `terraform plan`
+  - `terraform apply`
+  - `terraform destroy`
+- Improved automation using shell scripts and Makefile
+
+Legacy Kubernetes YAML files from the previous exercise have been removed.
 
 ## Application Overview
 
 The application consists of three layers:
 
-1. Frontend  
-   - Nginx serving a static HTML page  
-   - Accessible externally via Kubernetes Ingress
-   - Communicates with the backend using `/api/*` endpoints
+### 1. Frontend
+- Nginx serving a static HTML page
+- Deployed as a Kubernetes Deployment
+- Exposed externally via Kubernetes Ingress
 
-2. Backend  
-   - Node.js + Express REST API  
-   - Configuration provided via a ConfigMap 
-   - Database credentials provided via a Secret  
-   - Connects to PostgreSQL and increments a counter on each request
+### 2. Backend
+- Node.js + Express REST API
+- Configuration provided via a ConfigMap
+- Database credentials provided via a Secret
+- Connects to PostgreSQL using internal service discovery
 
-3. Database  
-   - PostgreSQL  
-   - Deployed as a StatefulSet  
-   - Uses a PersistentVolumeClaim for persistent data storage
+### 3. Database
+- PostgreSQL
+- Deployed as a StatefulSet
+- Uses a PersistentVolumeClaim for persistent storage
 
 ## Architecture Diagram
 
@@ -53,6 +67,7 @@ Ingress (nginx)
 - Docker (Docker Desktop recommended)
 - Minikube
 - kubectl
+- Terraform
 - GNU Make
 - Bash-compatible shell
 
@@ -61,33 +76,30 @@ Ingress (nginx)
 ```
 k8s-3tier-app-exercise/
 ├── README.md
-├── namespace.yaml
-├── frontend/
-│   ├── app/
-│   │   ├── index.html
-│   │   └── Dockerfile
-│   ├── deployment.yaml
-│   └── service.yaml
-├── backend/
-│   ├── app/
+├── app/
+│   ├── backend/
+│   │   ├── Dockerfile
 │   │   ├── app.js
-│   │   ├── package.json
-│   │   └── Dockerfile
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── configmap.yaml
-├── database/
-│   ├── pvc.yaml
-│   ├── secret.yaml
-│   ├── statefulset.yaml
-│   └── service.yaml
-├── ingress/
-│   └── ingress.yaml
+│   │   └── package.json
+│   └── frontend/
+│       ├── Dockerfile
+│       └── index.html
+├── terraform/
+│   ├── providers.tf
+│   ├── namespace.tf
+│   ├── pvc.tf
+│   ├── database.tf
+│   ├── backend.tf
+│   ├── frontend.tf
+│   ├── ingress.tf
+│   ├── variables.tf
+│   ├── terraform.tfvars
+│   └── dev.tfvars
 ├── scripts/
 │   ├── 01-install.sh
-│   ├── 02-deploy.sh
+│   ├── 02-apply.sh
 │   ├── 03-test.sh
-│   └── 04-cleanup.sh
+│   └── 04-destroy.sh
 └── Makefile
 ```
 
@@ -97,20 +109,22 @@ k8s-3tier-app-exercise/
 
 ### 1. Start the cluster and prepare the environment
 
-`make install`
+`make init`
 
 This will:
-- Start Minikube (using Docker driver if available)
-- Enable the nginx ingress controller
-- Create the Kubernetes namespace
+- Start Minikube if not running (using Docker driver if available)
+- Set the Kubernetes context
+- Enable the ingress controller
+- Run `terraform init`
 
-### 2. Build images and deploy the application
+### 2. Deploy infrastructure and application
 
-`make deploy`
+`make apply`
 
 This will:
 - Build frontend and backend images directly inside Minikube
-- Deploy all Kubernetes resources in the correct dependency order
+- Generate a Terraform execution plan
+- Apply all Kubernetes resources
 - Wait for workloads to become ready
 
 ### 3. Test the deployment
@@ -118,54 +132,39 @@ This will:
 `make test`
 
 This will:
-- Build frontend and backend images directly inside Minikube
-- Deploy all Kubernetes resources in the correct dependency order
-- Wait for workloads to become ready
+- Verify namespace and workloads
+- Confirm PostgreSQL readiness
+- Validate backend and frontend via Ingress
+- Confirm `/api/health` and `/api/message` endpoints
 
-### 4. View deployment status
+### 4. Destroy the environment
 
-`make status`
+`make destroy`
 
-This shows:
-- BPds, Services, Ingress
-- ConfigMaps, Secrets
-- StatefulSets and PVCs
+This will:
+- Destroy all Terraform-managed Kubernetes resources
 
-### 5. Scale the backend
+## Kubernetes Objects Managed via Terraform
 
-`make scale N=3`
+- Namespace
+- Deployments (frontend, backend)
+- StatefulSet (PostgreSQL)
+- Services
+- ConfigMaps
+- Secrets
+- PersistentVolumeClaims
+- Ingress
 
-This demonstrates horizontal scaling of the backend Deployment (by three replicas in this example).
-
-### 6. Cleanup
-
-`make cleanup`
-
-Deletes the application namespace and all associated resources.
-
-## Kubernetes Objects Used
-
-- **Deployments** (frontend, backend)
-- **StatefulSet** (PostgreSQL)
-- **Services** (ClusterIP)
-- **ConfigMap**
-- **Secret**
-- **PersistentVolumeClaim**
-- **Ingress**
-
-## Design Notes
-
-- The system is fully automated to reflect an infrastructure/architecture workflow.
-- Images builds are handled inside the cluster runtime to avoid environment drift.
-- The application is portable across environments that support Minikube.
-- All configuration and secrets are externalized using Kubernetes-native mechanisms.
+## Known Limitations
+- Designed for local development using Minikube
+- Images are built locally and loaded into Minikube
+- Not intended for production or multi-node clusters
 
 ## Educational Context
 
-This project was developed as part of a Kubernetes module to demonstrate:
-- Correct use of Kubernetes primitives
-- Clean repository structure.
-- Automation best practices
-- End-to-end application deployment
+This project was developed as part of a Kubernetes and module to demonstrate:
+- Transition from imperative Kubernetes YAML to declarative Terraform
+- Clean, modular infrastructure design
+- End-to-end automated application deployment
 
 ## Thank you!

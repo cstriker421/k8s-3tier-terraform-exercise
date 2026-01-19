@@ -71,6 +71,7 @@ if kubectl get ns ingress-nginx >/dev/null 2>&1 && kubectl -n "${NAMESPACE}" get
 
   if [[ -n "${MINIKUBE_IP}" ]]; then
     curl_check "http://${MINIKUBE_IP}${BACKEND_HEALTH_PATH}" "Backend health (ingress)"
+    curl_check "http://${MINIKUBE_IP}/api/message" "Backend message (ingress)"  
     curl_check "http://${MINIKUBE_IP}${FRONTEND_PATH}" "Frontend (ingress)"
     echo "OK: ingress reachable via minikube IP."
     exit 0

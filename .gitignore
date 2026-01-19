@@ -1,5 +1,4 @@
 terraform/.terraform/
-terraform/.terraform.lock.hcl
 terraform/.plans/
 terraform/*.tfstate
 terraform/*.tfstate.*
